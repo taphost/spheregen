@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SphereGen - Wireframe Sphere Generator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      overflow: hidden;
+    }
+    
+    #app {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      height: 100vh;
+    }
+    
+    #canvas-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+      transition: background-color 0.3s;
+    }
+    
+    #controls-panel {
+      background: #2a2a2a;
+      padding: 20px;
+      overflow-y: auto;
+      border-left: 2px solid #444;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #00ffff;
+      text-align: center;
+    }
+    
+    .control-group {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #333;
+      border-radius: 8px;
+    }
+    
+    .control-group h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #00ffff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .control-item {
+      margin-bottom: 12px;
+    }
+    
+    label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: #555;
+      outline: none;
+      border-radius: 2px;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #00ffff;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #00ffff;
+      cursor: pointer;
+      border-radius: 50%;
+      border: none;
+    }
+    
+    input[type="color"] {
+      width: 100%;
+      height: 40px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    select {
+      width: 100%;
+      padding: 8px;
+      background: #444;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    
+    .value-display {
+      display: inline-block;
+      float: right;
+      color: #00ffff;
+      font-weight: bold;
+    }
+    
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    button {
+      padding: 12px;
+      background: #444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    button:hover {
+      background: #555;
+      transform: translateY(-2px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button.primary {
+      background: #00ffff;
+      color: #000;
+    }
+    
+    button.primary:hover {
+      background: #00cccc;
+    }
+    
+    button.danger {
+      background: #ff4444;
+    }
+    
+    button.danger:hover {
+      background: #cc0000;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    #code-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      padding: 40px;
+    }
+    
+    #code-modal.active {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    #code-content {
+      flex: 1;
+      background: #1a1a1a;
+      border: 2px solid #00ffff;
+      border-radius: 8px;
+      padding: 20px;
+      overflow: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre;
+      color: #00ffff;
+    }
+    
+    #copy-notification {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #00ffff;
+      color: #000;
+      padding: 20px 40px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    
+    #copy-notification.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <div id="controls-panel">
+      <h1>SPHEREGEN</h1>
+      
+      <div class="control-group">
+        <h3>Geometry</h3>
+        <div class="control-item">
+          <label>Radius <span class="value-display" id="radius-val">2</span></label>
+          <input type="range" id="radius" min="0.5" max="5" step="0.1" value="2">
+        </div>
+        <div class="control-item">
+          <label>Width Segments <span class="value-display" id="width-val">32</span></label>
+          <input type="range" id="widthSegments" min="8" max="64" step="4" value="32">
+        </div>
+        <div class="control-item">
+          <label>Height Segments <span class="value-display" id="height-val">32</span></label>
+          <input type="range" id="heightSegments" min="8" max="64" step="4" value="32">
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h3>Rotation</h3>
+        <div class="control-item">
+          <label>Speed X <span class="value-display" id="speedx-val">0.002</span></label>
+          <input type="range" id="speedX" min="-0.05" max="0.05" step="0.001" value="0.002">
+        </div>
+        <div class="control-item">
+          <label>Speed Y <span class="value-display" id="speedy-val">0.004</span></label>
+          <input type="range" id="speedY" min="-0.05" max="0.05" step="0.001" value="0.004">
+        </div>
+        <div class="control-item">
+          <label>Speed Z <span class="value-display" id="speedz-val">0.000</span></label>
+          <input type="range" id="speedZ" min="-0.05" max="0.05" step="0.001" value="0">
+        </div>
+        <div class="control-item">
+          <label>Angle X <span class="value-display" id="anglex-val">0</span></label>
+          <input type="range" id="angleX" min="0" max="360" step="1" value="0">
+        </div>
+        <div class="control-item">
+          <label>Angle Y <span class="value-display" id="angley-val">0</span></label>
+          <input type="range" id="angleY" min="0" max="360" step="1" value="0">
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h3>Effects</h3>
+        <div class="control-item">
+          <label>Frequency <span class="value-display" id="freq-val">1.0</span></label>
+          <input type="range" id="frequency" min="0" max="5" step="0.1" value="1">
+        </div>
+        <div class="control-item">
+          <label>Amplitude <span class="value-display" id="amp-val">0.05</span></label>
+          <input type="range" id="amplitude" min="0" max="0.5" step="0.01" value="0.05">
+        </div>
+        <div class="control-item">
+          <label>Randomness <span class="value-display" id="rand-val">0.0</span></label>
+          <input type="range" id="randomness" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="control-item">
+          <label>Flickering <span class="value-display" id="flicker-val">0.0</span></label>
+          <input type="range" id="flickering" min="0" max="1" step="0.01" value="0">
+        </div>
+      </div>
+      
+      <div class="control-group">
+        <h3>Colors</h3>
+        <div class="control-item">
+          <label>Sphere Color</label>
+          <input type="color" id="sphereColor" value="#00ffff">
+        </div>
+        <div class="control-item">
+          <label>Background Color</label>
+          <input type="color" id="bgColor" value="#000000">
+        </div>
+        <div class="control-item checkbox-container">
+          <input type="checkbox" id="invertColors">
+          <label style="margin: 0">Invert Colors</label>
+        </div>
+        <div class="control-item">
+          <label>Opacity <span class="value-display" id="opacity-val">0.6</span></label>
+          <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="0.6">
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button id="playBtn" class="primary">▶ PLAY</button>
+        <button id="pauseBtn">⏸ PAUSE</button>
+        <button id="resetBtn" class="danger">↻ RESET</button>
+        <button id="savePngBtn">💾 PNG</button>
+        <button id="saveHtmlBtn">📄 HTML</button>
+        <button id="showCodeBtn">👁 CODE</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="code-modal">
+    <div class="modal-header">
+      <button id="copyCodeBtn" class="primary">📋 COPY</button>
+      <button id="closeModalBtn">✖ CLOSE</button>
+    </div>
+    <div id="code-content"></div>
+  </div>
+  
+  <div id="copy-notification">Code Copied to Clipboard!</div>
+
+  <script src="three.min.js"></script>
+  <script>
+    // Application state
+    const state = {
+      radius: 2,
+      widthSegments: 32,
+      heightSegments: 32,
+      speedX: 0.002,
+      speedY: 0.004,
+      speedZ: 0,
+      angleX: 0,
+      angleY: 0,
+      frequency: 1,
+      amplitude: 0.05,
+      randomness: 0,
+      flickering: 0,
+      sphereColor: '#00ffff',
+      bgColor: '#000000',
+      invertColors: false,
+      opacity: 0.6,
+      isPlaying: true
+    };
+    
+    const defaultState = {...state};
+    
+    // Three.js setup
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.z = 5;
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+    
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+    
+    // Wireframe sphere
+    let sphereGroup = new THREE.Group();
+    let wireframeMesh;
+    
+    function createSphere() {
+      // Remove previous sphere
+      if (wireframeMesh) {
+        sphereGroup.remove(wireframeMesh);
+      }
+      
+      const geometry = new THREE.SphereGeometry(
+        state.radius, 
+        state.widthSegments, 
+        state.heightSegments
+      );
+      
+      const wireframe = new THREE.WireframeGeometry(geometry);
+      const color = state.invertColors ? state.bgColor : state.sphereColor;
+      const lineMaterial = new THREE.LineBasicMaterial({ 
+        color: color,
+        transparent: true, 
+        opacity: state.opacity
+      });
+      
+      wireframeMesh = new THREE.LineSegments(wireframe, lineMaterial);
+      sphereGroup.add(wireframeMesh);
+    }
+    
+    scene.add(sphereGroup);
+    createSphere();
+    
+    // Animation
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      if (state.isPlaying) {
+        time += 0.016;
+        
+        // Base rotation
+        sphereGroup.rotation.x += state.speedX;
+        sphereGroup.rotation.y += state.speedY;
+        sphereGroup.rotation.z += state.speedZ;
+        
+        // Oscillation effect
+        if (state.amplitude > 0) {
+          const scale = 1 + state.amplitude * Math.sin(time * state.frequency);
+          sphereGroup.scale.set(scale, scale, scale);
+        }
+        
+        // Random movement
+        if (state.randomness > 0) {
+          sphereGroup.rotation.x += (Math.random() - 0.5) * state.randomness * 0.01;
+          sphereGroup.rotation.y += (Math.random() - 0.5) * state.randomness * 0.01;
+          sphereGroup.rotation.z += (Math.random() - 0.5) * state.randomness * 0.01;
+        }
+        
+        // Flickering effect
+        if (state.flickering > 0 && wireframeMesh) {
+          const flickerAmount = state.flickering * 0.5;
+          const newOpacity = state.opacity + (Math.random() - 0.5) * flickerAmount;
+          wireframeMesh.material.opacity = Math.max(0.1, Math.min(1, newOpacity));
+        }
+      }
+      
+      renderer.render(scene, camera);
+    }
+    
+    // Update background color
+    function updateBackground() {
+      const color = state.invertColors ? state.sphereColor : state.bgColor;
+      container.style.backgroundColor = color;
+      renderer.setClearColor(color);
+    }
+    
+    // Setup control event listeners
+    function setupControls() {
+      // Geometry controls
+      document.getElementById('radius').addEventListener('input', (e) => {
+        state.radius = parseFloat(e.target.value);
+        document.getElementById('radius-val').textContent = state.radius.toFixed(1);
+        createSphere();
+      });
+      
+      document.getElementById('widthSegments').addEventListener('input', (e) => {
+        state.widthSegments = parseInt(e.target.value);
+        document.getElementById('width-val').textContent = state.widthSegments;
+        createSphere();
+      });
+      
+      document.getElementById('heightSegments').addEventListener('input', (e) => {
+        state.heightSegments = parseInt(e.target.value);
+        document.getElementById('height-val').textContent = state.heightSegments;
+        createSphere();
+      });
+      
+      // Rotation controls
+      document.getElementById('speedX').addEventListener('input', (e) => {
+        state.speedX = parseFloat(e.target.value);
+        document.getElementById('speedx-val').textContent = state.speedX.toFixed(3);
+      });
+      
+      document.getElementById('speedY').addEventListener('input', (e) => {
+        state.speedY = parseFloat(e.target.value);
+        document.getElementById('speedy-val').textContent = state.speedY.toFixed(3);
+      });
+      
+      document.getElementById('speedZ').addEventListener('input', (e) => {
+        state.speedZ = parseFloat(e.target.value);
+        document.getElementById('speedz-val').textContent = state.speedZ.toFixed(3);
+      });
+      
+      document.getElementById('angleX').addEventListener('input', (e) => {
+        state.angleX = parseInt(e.target.value);
+        document.getElementById('anglex-val').textContent = state.angleX;
+        sphereGroup.rotation.x = state.angleX * Math.PI / 180;
+      });
+      
+      document.getElementById('angleY').addEventListener('input', (e) => {
+        state.angleY = parseInt(e.target.value);
+        document.getElementById('angley-val').textContent = state.angleY;
+        sphereGroup.rotation.y = state.angleY * Math.PI / 180;
+      });
+      
+      // Effects controls
+      document.getElementById('frequency').addEventListener('input', (e) => {
+        state.frequency = parseFloat(e.target.value);
+        document.getElementById('freq-val').textContent = state.frequency.toFixed(1);
+      });
+      
+      document.getElementById('amplitude').addEventListener('input', (e) => {
+        state.amplitude = parseFloat(e.target.value);
+        document.getElementById('amp-val').textContent = state.amplitude.toFixed(2);
+      });
+      
+      document.getElementById('randomness').addEventListener('input', (e) => {
+        state.randomness = parseFloat(e.target.value);
+        document.getElementById('rand-val').textContent = state.randomness.toFixed(2);
+      });
+      
+      document.getElementById('flickering').addEventListener('input', (e) => {
+        state.flickering = parseFloat(e.target.value);
+        document.getElementById('flicker-val').textContent = state.flickering.toFixed(2);
+      });
+      
+      // Color controls
+      document.getElementById('sphereColor').addEventListener('input', (e) => {
+        state.sphereColor = e.target.value;
+        createSphere();
+        updateBackground();
+      });
+      
+      document.getElementById('bgColor').addEventListener('input', (e) => {
+        state.bgColor = e.target.value;
+        updateBackground();
+      });
+      
+      document.getElementById('invertColors').addEventListener('change', (e) => {
+        state.invertColors = e.target.checked;
+        createSphere();
+        updateBackground();
+      });
+      
+      document.getElementById('opacity').addEventListener('input', (e) => {
+        state.opacity = parseFloat(e.target.value);
+        document.getElementById('opacity-val').textContent = state.opacity.toFixed(1);
+        createSphere();
+      });
+      
+      // Action buttons
+      document.getElementById('playBtn').addEventListener('click', () => {
+        state.isPlaying = true;
+      });
+      
+      document.getElementById('pauseBtn').addEventListener('click', () => {
+        state.isPlaying = false;
+      });
+      
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        Object.assign(state, defaultState);
+        
+        // Update all UI controls
+        document.getElementById('radius').value = state.radius;
+        document.getElementById('widthSegments').value = state.widthSegments;
+        document.getElementById('heightSegments').value = state.heightSegments;
+        document.getElementById('speedX').value = state.speedX;
+        document.getElementById('speedY').value = state.speedY;
+        document.getElementById('speedZ').value = state.speedZ;
+        document.getElementById('angleX').value = state.angleX;
+        document.getElementById('angleY').value = state.angleY;
+        document.getElementById('frequency').value = state.frequency;
+        document.getElementById('amplitude').value = state.amplitude;
+        document.getElementById('randomness').value = state.randomness;
+        document.getElementById('flickering').value = state.flickering;
+        document.getElementById('sphereColor').value = state.sphereColor;
+        document.getElementById('bgColor').value = state.bgColor;
+        document.getElementById('invertColors').checked = state.invertColors;
+        document.getElementById('opacity').value = state.opacity;
+        
+        // Update value displays
+        document.querySelectorAll('.value-display').forEach(el => {
+          const id = el.id.replace('-val', '');
+          const input = document.getElementById(id);
+          if (input) el.textContent = input.value;
+        });
+        
+        sphereGroup.rotation.set(0, 0, 0);
+        sphereGroup.scale.set(1, 1, 1);
+        createSphere();
+        updateBackground();
+      });
+      
+      document.getElementById('savePngBtn').addEventListener('click', () => {
+        renderer.render(scene, camera);
+        const dataURL = renderer.domElement.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = 'sphere-wireframe.png';
+        link.href = dataURL;
+        link.click();
+      });
+      
+      document.getElementById('saveHtmlBtn').addEventListener('click', () => {
+        const htmlContent = generateHTML();
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = 'sphere-wireframe.html';
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+      
+      document.getElementById('showCodeBtn').addEventListener('click', () => {
+        const code = generateHTML();
+        document.getElementById('code-content').textContent = code;
+        document.getElementById('code-modal').classList.add('active');
+      });
+      
+      document.getElementById('copyCodeBtn').addEventListener('click', () => {
+        const code = document.getElementById('code-content').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          showNotification();
+        });
+      });
+      
+      document.getElementById('closeModalBtn').addEventListener('click', () => {
+        document.getElementById('code-modal').classList.remove('active');
+      });
+    }
+    
+    // Show copy notification
+    function showNotification() {
+      const notification = document.getElementById('copy-notification');
+      notification.classList.add('show');
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 2000);
+    }
+    
+    // Generate standalone HTML
+    function generateHTML() {
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wireframe Sphere</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: ${state.bgColor}; }
+    #container { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>
+  <script>
+    const container = document.getElementById('container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor('${state.bgColor}');
+    container.appendChild(renderer.domElement);
+    
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+    
+    const geometry = new THREE.SphereGeometry(${state.radius}, ${state.widthSegments}, ${state.heightSegments});
+    const wireframe = new THREE.WireframeGeometry(geometry);
+    const lineMaterial = new THREE.LineBasicMaterial({ 
+      color: '${state.sphereColor}',
+      transparent: true, 
+      opacity: ${state.opacity}
+    });
+    
+    const sphereGroup = new THREE.Group();
+    const wireframeMesh = new THREE.LineSegments(wireframe, lineMaterial);
+    sphereGroup.add(wireframeMesh);
+    scene.add(sphereGroup);
+    
+    sphereGroup.rotation.x = ${state.angleX * Math.PI / 180};
+    sphereGroup.rotation.y = ${state.angleY * Math.PI / 180};
+    
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      time += 0.016;
+      
+      sphereGroup.rotation.x += ${state.speedX};
+      sphereGroup.rotation.y += ${state.speedY};
+      sphereGroup.rotation.z += ${state.speedZ};
+      
+      ${state.amplitude > 0 ? `
+      const scale = 1 + ${state.amplitude} * Math.sin(time * ${state.frequency});
+      sphereGroup.scale.set(scale, scale, scale);
+      ` : ''}
+      
+      ${state.randomness > 0 ? `
+      sphereGroup.rotation.x += (Math.random() - 0.5) * ${state.randomness} * 0.01;
+      sphereGroup.rotation.y += (Math.random() - 0.5) * ${state.randomness} * 0.01;
+      sphereGroup.rotation.z += (Math.random() - 0.5) * ${state.randomness} * 0.01;
+      ` : ''}
+      
+      ${state.flickering > 0 ? `
+      const flickerAmount = ${state.flickering} * 0.5;
+      const newOpacity = ${state.opacity} + (Math.random() - 0.5) * flickerAmount;
+      wireframeMesh.material.opacity = Math.max(0.1, Math.min(1, newOpacity));
+      ` : ''}
+      
+      renderer.render(scene, camera);
+    }
+    
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    animate();
+  <\/script>
+</body>
+</html>`;
+    }
+    
+    // Window resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+    
+    // Initialize
+    setupControls();
+    updateBackground();
+    animate();
+  </script>
+</body>
+</html>
