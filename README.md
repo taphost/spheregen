@@ -86,4 +86,4 @@ Interactive 3D wireframe sphere generator with real-time controls and multiple e
 
 ## 📄 License
 
-Free to use for personal and commercial projects.
+MIT License - Copyright (c) 2025 - Free to use, modify, and distribute.
